@@ -1,0 +1,83 @@
+dataset:
+  datamodule:
+    _target_: src.data.ltsf_datamodule.LTSFDataModule
+    path: data
+    file_name: nurse_scheduling_data.csv
+    force_rebuild: false
+    freq: ${dataset.freq}
+    target: ward_A_nursing_staff_capacity
+  freq: 1h
+evaluation:
+  horizon: 720
+  lookback: 96
+  cv: true
+  retrain: false
+  metrics:
+  - mae
+  - rmse
+  - smape
+  val_start_date: '2023-02-01'
+  test_start_date: '2023-04-01'
+model:
+  model:
+    _target_: neuralforecast.auto.AutoPatchTST
+    h: ${evaluation.horizon}
+    loss:
+      _target_: neuralforecast.losses.pytorch.MSE
+    config:
+      revin: true
+      scaler_type: identity
+      random_seed: ${seed}
+      tune:
+        choice:
+          n_heads:
+          - 4
+          patch_len:
+          - 8
+          - 12
+          - 16
+          hidden_size:
+          - 16
+          linear_hidden_size:
+          - 128
+          encoder_layers:
+          - 3
+          learning_rate:
+          - 1.0e-05
+          - 0.0001
+          - 0.001
+          - 0.01
+          - 0.1
+          dropout:
+          - 0.1
+          - 0.2
+          - 0.3
+          - 0.4
+          - 0.5
+          - 0.7
+          - 0.9
+          input_size:
+          - 24
+          - 96
+          - 336
+          - 720
+        sample_from:
+          stride: 'lambda spec: int(spec.config.patch_len * 0.5)'
+      max_steps: 1
+      early_stop_patience_steps: 2
+      val_check_steps: 1
+    num_samples: 1
+    verbose: ${verbose}
+    backend: ray
+    cpus: 2
+    gpus: 0
+  neuralforecast:
+    local_scaler_type: standard
+    freq: ${dataset.freq}
+seed: 123
+name: hpo-patchtst-univariate
+loss: mse
+verbose: 1
+extras:
+  print_config: true
+pipeline: ltsf

@@ -1,0 +1,101 @@
+dataset:
+  datamodule:
+    _target_: src.data.ltsf_datamodule.LTSFDataModule
+    path: data
+    file_name: nurse_scheduling_data.csv
+    force_rebuild: false
+    freq: ${dataset.freq}
+    target: ward_A_nursing_staff_capacity
+  freq: 1h
+evaluation:
+  horizon: 720
+  lookback: 96
+  cv: true
+  retrain: false
+  metrics:
+  - mae
+  - rmse
+  - smape
+  val_start_date: '2023-02-01'
+  test_start_date: '2023-04-01'
+model:
+  model:
+    _target_: darts.models.forecasting.lgbm.LightGBMModel
+    model_name: lightgbm
+    lags: ${evaluation.lookback}
+    output_chunk_length: ${evaluation.horizon}
+    save_checkpoints: false
+    force_reset: true
+    random_state: ${seed}
+    num_samples: 1
+    show_warnings: true
+    torch_metrics:
+      _target_: torchmetrics.MetricCollection
+      _convert_: object
+      metrics:
+        mape:
+          _target_: torchmetrics.MeanAbsolutePercentageError
+        mae:
+          _target_: torchmetrics.MeanAbsoluteError
+        mse:
+          _target_: torchmetrics.MeanSquaredError
+        rmse:
+          _target_: torchmetrics.MeanSquaredError
+          squared: false
+        smape:
+          _target_: torchmetrics.SymmetricMeanAbsolutePercentageError
+  config:
+    multi_models:
+    - false
+    num_leaves:
+    - 15
+    - 20
+    - 25
+    - 30
+    - 35
+    - 40
+    - 45
+    learning_rate:
+    - 1.0e-05
+    - 0.0001
+    - 0.001
+    - 0.01
+    - 0.1
+    n_estimators:
+    - 50
+    - 60
+    - 70
+    - 80
+    - 90
+    min_child_samples:
+    - 10
+    - 20
+    - 30
+    lags:
+    - 24
+    - - -168
+      - -24
+    - - -336
+      - -168
+      - -24
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
+    monitor: val_loss
+    patience: 2
+    mode: min
+    check_on_train_epoch_end: false
+    divergence_threshold: 10
+    verbose: true
+  tune_report_callback:
+    _target_: ray.tune.integration.pytorch_lightning.TuneReportCheckpointCallback
+    save_checkpoints: false
+    metrics: val_loss
+    'on': validation_end
+  model_name: lightgbm-uni
+seed: 123
+name: hpo-lightgbm-uni
+loss: mse
+verbose: 1
+extras:
+  print_config: true
+pipeline: ltsf

@@ -1,0 +1,145 @@
+dataset:
+  datamodule:
+    _target_: src.data.ltsf_datamodule.LTSFDataModule
+    path: data
+    file_name: nurse_scheduling_data.csv
+    force_rebuild: false
+    freq: ${dataset.freq}
+    target: ward_A_nursing_staff_capacity
+  freq: 1h
+evaluation:
+  horizon: 720
+  lookback: 96
+  cv: true
+  retrain: false
+  metrics:
+  - mae
+  - rmse
+  - smape
+  val_start_date: '2023-02-01'
+  test_start_date: '2023-04-01'
+model:
+  model:
+    pl_trainer_kwargs:
+      max_epochs: ${model.model.n_epochs}
+      check_val_every_n_epoch: 1
+      accelerator: auto
+      callbacks: []
+    _target_: darts.models.forecasting.tide_model.TiDEModel
+    model_name: tide-base
+    input_chunk_length: ${evaluation.lookback}
+    output_chunk_length: ${evaluation.horizon}
+    num_encoder_layers: 1
+    num_decoder_layers: 1
+    hidden_size: 256
+    temporal_decoder_hidden: 32
+    decoder_output_dim: 4
+    use_reversible_instance_norm: true
+    likelihood: null
+    save_checkpoints: false
+    force_reset: true
+    random_state: ${seed}
+    n_epochs: 30
+    show_warnings: true
+    loss_fn:
+      _target_: torch.nn.MSELoss
+    torch_metrics:
+      _target_: torchmetrics.MetricCollection
+      _convert_: object
+      metrics:
+        mape:
+          _target_: torchmetrics.MeanAbsolutePercentageError
+        mae:
+          _target_: torchmetrics.MeanAbsoluteError
+        mse:
+          _target_: torchmetrics.MeanSquaredError
+        rmse:
+          _target_: torchmetrics.MeanSquaredError
+          squared: false
+        smape:
+          _target_: torchmetrics.SymmetricMeanAbsolutePercentageError
+    optimizer_kwargs:
+      lr: ${model.lr}
+  config:
+    num_encoder_layers:
+      _target_: ray.tune.choice
+      categories:
+      - 1
+      - 2
+      - 3
+    num_decoder_layers:
+      _target_: ray.tune.choice
+      categories:
+      - 1
+      - 2
+      - 3
+    hidden_size:
+      _target_: ray.tune.choice
+      categories:
+      - 256
+      - 512
+      - 1024
+    temporal_decoder_hidden:
+      _target_: ray.tune.choice
+      categories:
+      - 32
+      - 64
+      - 128
+    decoder_output_dim:
+      _target_: ray.tune.choice
+      categories:
+      - 4
+      - 8
+      - 16
+      - 32
+    dropout:
+      _target_: ray.tune.choice
+      categories:
+      - 0.1
+      - 0.2
+      - 0.3
+      - 0.4
+      - 0.5
+      - 0.7
+      - 0.9
+    input_chunk_length:
+      _target_: ray.tune.choice
+      categories:
+      - 24
+      - 96
+      - 336
+      - 720
+    optimizer_kwargs:
+      lr:
+        _target_: ray.tune.choice
+        categories:
+        - 1.0e-05
+        - 0.0001
+        - 0.001
+        - 0.01
+        - 0.1
+  num_samples: 1
+  verbose: ${verbose}
+  backend: ray
+  lr: ${model.config.optimizer_kwargs.lr}
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
+    monitor: val_loss
+    patience: 2
+    mode: min
+    check_on_train_epoch_end: false
+    divergence_threshold: 10
+    verbose: true
+  tune_report_callback:
+    _target_: ray.tune.integration.pytorch_lightning.TuneReportCheckpointCallback
+    save_checkpoints: false
+    metrics: val_loss
+    'on': validation_end
+  model_name: tide-uni
+seed: 123
+name: hpo-tide-uni
+loss: mse
+verbose: 1
+extras:
+  print_config: true
+pipeline: ltsf
