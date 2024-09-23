@@ -36,6 +36,8 @@ tqdm = "^4.66.2"
 
 
 vulture = "^2.12"
+lightgbm = "^4.3.0"
+xgboost = "^2.0.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

@@ -5,7 +5,7 @@
 All dependencies are included in the `pyproject.toml` and can be installed using poetry.
 
 1. install poetry `pip install poetry`
-2. install dependencies `poetry install --with dev,ltsf`
+2. install dependencies `poetry install`
 3. activate virtual environment `poetry shell`
 4. execute experiment, e.g., `python train.py -cn lightgbm-uni`
 
