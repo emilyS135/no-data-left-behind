@@ -21,18 +21,14 @@ class LTSFDataModule(DataModule):
         self.target = target
         self._data: pd.DataFrame | None = None
         self._futr_exog: pd.DataFrame | None = None
-        self._hist_exog: pd.DataFrame | None = None
-        self._stat_exog: pd.DataFrame | None = None
 
     def pipeline(
         self,
-        feature_list: list[str] | None = None,
         target: str | None = None,
     ) -> pd.DataFrame:
         """Loads or generates the feature dataframe.
 
         Args:
-            feature_list (list[str]): unused. Defaults to None.
             target (str): name of the target variable. Defaults to None.
 
         Raises:
@@ -46,12 +42,6 @@ class LTSFDataModule(DataModule):
             self.target = target
             self._data = None
         return self.data
-
-    def get_tabular_data(self, feature_list: list[str], target: str) -> pd.DataFrame:
-        raise NotImplementedError("Data contains timeseries data only.")
-
-    def get_windowed_data(self) -> pd.DataFrame:
-        raise NotImplementedError("this is done automagically.")
 
     def get_raw_data(self) -> tuple[pd.DataFrame, ...]:
         # load nursing staff data
@@ -68,7 +58,7 @@ class LTSFDataModule(DataModule):
         if target is not None:
             if target != self.target:
                 # this is only for interface consistency
-                log.warn(
+                log.warning(
                     f"new target column selected. was {self.target}, now building timeseries data for {target}"
                 )
                 self.target = target
