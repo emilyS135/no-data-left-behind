@@ -104,3 +104,6 @@ config.json
 .mypy_cache/
 
 lightning_logs/
+outputs/
+hpo/
+*.feather
