@@ -1,11 +1,9 @@
-import mlflow
 import numpy as np
 from statsforecast import StatsForecast
 from tqdm.auto import tqdm
 from utilsforecast.evaluation import evaluate
 from typing import cast
 from src.data import utils as utils
-from src.logging.mlflow import MlflowLogger
 from src.utils.types import MetricCallable, MetricsDict
 from src.utils import get_logger
 from pathlib import Path
@@ -25,7 +23,6 @@ def cross_validation_with_retraining(
     cfg: DictConfig,
     metrics: dict[str, MetricCallable],
     kwargs: dict,
-    logger: MlflowLogger | None,
 ) -> tuple[DataFrame, DataFrame]:
     """
     Retrain the model using a growing window cross validation and evaluate its performance.
@@ -35,7 +32,6 @@ def cross_validation_with_retraining(
     cfg (DictConfig): configuration for the retraining and evaluation
     metrics (dict[str, MetricCallable]): metrics to be used for evaluation
     kwargs (dict): additional keyword arguments
-    logger (MlflowLogger | None): optional logger for logging metrics and hyperparameters
 
     Returns:
     tuple[DataFrame, DataFrame]: a tuple of two DataFrames, the first containing the forecasts and the second containing the aggregated evaluation metrics
@@ -63,40 +59,9 @@ def cross_validation_with_retraining(
             )
         )
     ):
-        if isinstance(logger, MlflowLogger):
-            parent_run = logger.experiment.get_run(logger.run_id)
-            if parent_run is not None:
-                parent_run_name = parent_run.info.run_name
-                parent_run_id = parent_run.info.run_id
-            else:
-                parent_run_name = "unknown_parent_run"
-                parent_run_id = "unknown_parent_id"
-            child_run_name = f"{parent_run_name}_{split}"
-            with mlflow.start_run(
-                run_name=child_run_name, experiment_id=logger.experiment_id, nested=True
-            ) as child_run:
-                log.info(
-                    f"starting nested mlflow run {child_run_name} with id {child_run.info.run_id} of experiment {logger.experiment_name} under parent {parent_run_name} with id {parent_run_id}"
-                )
-
-                model_name, fcsts_labelled, cv_results = train_eval_cross_validation_fold(
-                    forecaster,
-                    cfg,
-                    metrics,
-                    horizon,
-                    freq,
-                    split,
-                    retrain_set,
-                    test_set,
-                )
-                logger.experiment.log_table(
-                    child_run.info.run_id, cv_results, f"cv_split_{split}.json"
-                )
-
-        else:
-            model_name, fcsts_labelled, cv_results = train_eval_cross_validation_fold(
-                forecaster, cfg, metrics, horizon, freq, split, retrain_set, test_set
-            )
+        model_name, fcsts_labelled, cv_results = train_eval_cross_validation_fold(
+            forecaster, cfg, metrics, horizon, freq, split, retrain_set, test_set
+        )
 
         metric_results[split] = cv_results
         forecasts[split] = fcsts_labelled
@@ -125,7 +90,6 @@ def cross_validation_evaluation(
     cfg: DictConfig,
     metrics: dict[str, MetricCallable],
     kwargs: dict,
-    logger: MlflowLogger | None,
 ) -> tuple[DataFrame, DataFrame]:
     """
     Evaluates the performance of a forecaster using cross-validation without re-training.
@@ -135,7 +99,6 @@ def cross_validation_evaluation(
     cfg (DictConfig): configuration for the evaluation
     metrics (dict[str, MetricCallable]): metrics to be used for evaluation
     kwargs (dict): additional keyword arguments
-    logger (MlflowLogger | None): optional logger for logging metrics and hyperparameters
 
     Returns:
     tuple[DataFrame, DataFrame]: a tuple of two DataFrames, the first containing the forecasts and the second containing the evaluation metrics
@@ -221,16 +184,12 @@ def cross_validation_evaluation(
     try:
         Y_df = all_forecasts[["ds", "y", "unique_id"]]
         fcst_df = all_forecasts.loc[:, list(all_forecasts.columns.difference(["y"]))]
-        fig = StatsForecast.plot(
+        _ = StatsForecast.plot(
             Y_df,
             fcst_df,
             engine="matplotlib",
             plot_random=False,
         )
-        if logger:
-            curr_date = pd.Timestamp.now().strftime("%Y%m%d_%H-$M-$S")
-            exp_name = f"{model_name}_dropout={model.config.dropout}_input_size={model.config.input_size}_learning_rate={model.config.learning_rate}_{curr_date}"
-            logger.experiment.log_figure(logger.run_id, fig, f"testset_forecasts_{exp_name}.png")
     except Exception as e:
         log.exception(e)
 
@@ -255,11 +214,10 @@ def neuralforecast_pipe(
     model: pl.LightningModule,
     metrics: dict[str, MetricCallable],
     kwargs: dict,
-    logger: MlflowLogger | None,
 ) -> MetricsDict | DataFrame | None | tuple[DataFrame, DataFrame]:
     """
     This function is the main entry point for the NeuralForecast pipeline.
-    It takes in a configuration, a model, metrics, keyword arguments, and a logger (optional).
+    It takes in a configuration, a model, metrics, keyword arguments.
     Depending on the configuration, it will either perform hyperparameter tuning (HPO) with cross-validation (CV) evaluation,
     or cross-validation evaluation without re-training the model.
 
@@ -268,7 +226,6 @@ def neuralforecast_pipe(
     model (pl.LightningModule): the model to be used for forecasting
     metrics (dict[str, MetricCallable]): a dictionary of metrics to be used for evaluation
     kwargs (dict): additional keyword arguments
-    logger (MlflowLogger | None): an optional logger for logging metrics and hyperparameters
 
     Returns:
     MetricsDict | DataFrame | None | tuple[DataFrame, DataFrame]:
@@ -318,7 +275,7 @@ def neuralforecast_pipe(
     if cfg.evaluation.cv and cfg.evaluation.retrain:
         kwargs["n_windows"] = cfg.evaluation.n_windows
         forecaster = NeuralForecast(models=[model], **cfg.model.neuralforecast)
-        return cross_validation_with_retraining(forecaster, cfg, metrics, kwargs, logger=logger)
+        return cross_validation_with_retraining(forecaster, cfg, metrics, kwargs)
 
     # --- or use regular split and optionally Hyperparameter Optimization ---
     else:
@@ -334,13 +291,11 @@ def neuralforecast_pipe(
             log.info(kwargs["best_config"])
             # should be logged by mlflow/lightning, but to be sure.
             utils.save_yaml(kwargs["best_config"], Path.cwd(), f"best_hpo_config_{model}", "hpo")
-            if logger is not None:
-                logger.log_hyperparams(kwargs["best_config"])
 
         # --- use Cross-Validation for Model Evaluation
         if cfg.evaluation.cv and not cfg.evaluation.retrain:
             # re-use forecaster
-            return cross_validation_evaluation(forecaster, cfg, metrics, kwargs, logger=logger)
+            return cross_validation_evaluation(forecaster, cfg, metrics, kwargs)
 
 
 def train_eval_cross_validation_fold(
@@ -393,9 +348,9 @@ def train_eval_cross_validation_fold(
         log.warning(f"no historic exog. variables are used by model {model_name}!")
         # we might have some test splits that are too long considering stride
 
-    n, rm = np.divmod(len(test_set) - horizon, step_size)
+    _, rm = np.divmod(len(test_set) - horizon, step_size)
     if rm != 0:
-        log.warn(f"test split size is not dividable by step size, cutting off {rm} samples")
+        log.warning(f"test split size is not dividable by step size, cutting off {rm} samples")
         test_set = test_set.iloc[:-rm]
 
     # yup, using private methods here..

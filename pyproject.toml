@@ -11,9 +11,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-python-dotenv = ">=0.5.1"
 mlflow = "^2.12.1"
-azure-ai-ml = "^1.15.0"
 numpy = "^1.26.4"
 
 scienceplots = "^2.1.1"
@@ -28,14 +26,12 @@ darts = "^0.29.0"
 torch = {version = "^2.3.0", source = "pytorch-cpu", markers = "extra!='cuda'" }
 hydra-core = ">=1.1.0"
 
-deptry = "^0.20.0"
 antlr4-python3-runtime = "==4.9.3"
 hydra-colorlog = "^1.2.0"
 rich = "^13.7.1"
 tqdm = "^4.66.2"
 
 
-vulture = "^2.12"
 lightgbm = "^4.3.0"
 xgboost = "^2.0.3"
 [build-system]

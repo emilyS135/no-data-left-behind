@@ -1,4 +1,3 @@
-import logging
 import os
 import sys
 
@@ -7,8 +6,6 @@ from omegaconf import DictConfig
 
 from src import utils
 from src.pipelines import train_ltsf_pipeline
-
-log = logging.getLogger(__name__)
 
 
 @hydra.main(version_base=None, config_path="configs")
