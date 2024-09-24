@@ -27,7 +27,7 @@ model:
     save_checkpoints: false
     force_reset: true
     random_state: ${seed}
-    num_samples: 1
+    num_samples: 30
     show_warnings: true
     torch_metrics:
       _target_: torchmetrics.MetricCollection

@@ -22,7 +22,7 @@ model:
   model:
     pl_trainer_kwargs:
       max_epochs: ${model.model.n_epochs}
-      check_val_every_n_epoch: 1
+      check_val_every_n_epoch: 10
       accelerator: auto
       callbacks: []
     _target_: darts.models.forecasting.tide_model.TiDEModel
@@ -118,7 +118,7 @@ model:
         - 0.001
         - 0.01
         - 0.1
-  num_samples: 1
+  num_samples: 30
   verbose: ${verbose}
   backend: ray
   lr: ${model.config.optimizer_kwargs.lr}

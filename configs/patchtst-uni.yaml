@@ -63,13 +63,13 @@ model:
           - 720
         sample_from:
           stride: 'lambda spec: int(spec.config.patch_len * 0.5)'
-      max_steps: 1
+      max_steps: 400
       early_stop_patience_steps: 2
-      val_check_steps: 1
-    num_samples: 1
+      val_check_steps: 10
+    num_samples: 30
     verbose: ${verbose}
     backend: ray
-    cpus: 2
+    cpus: 64
     gpus: 0
   neuralforecast:
     local_scaler_type: standard

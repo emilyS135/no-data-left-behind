@@ -22,7 +22,7 @@ model:
   model:
     pl_trainer_kwargs:
       max_epochs: ${model.model.n_epochs}
-      check_val_every_n_epoch: 1
+      check_val_every_n_epoch: 10
       accelerator: auto
       callbacks: []
     _target_: darts.models.forecasting.tsmixer_model.TSMixerModel
@@ -34,7 +34,7 @@ model:
     save_checkpoints: false
     force_reset: true
     random_state: ${seed}
-    n_epochs: 1
+    n_epochs: 30
     show_warnings: true
     use_static_covariates: false
     loss_fn:
@@ -103,7 +103,7 @@ model:
         - 0.001
         - 0.01
         - 0.1
-  num_samples: 1
+  num_samples: 30
   verbose: ${verbose}
   backend: ray
   lr: ${model.config.optimizer_kwargs.lr}
