@@ -2,7 +2,8 @@
 
 This repository contains code and data in relation to the paper ***No Data Left Behind: Exogenous Variables in Long-Term Forecasting of Nursing Staff Capacity*** by *Emily Schiller (1), Simon Müller (1), Kathrin Ebertsch (2)* and *Jan-Philipp Steghöfer (1)* accepted at DSAA 2024.
 
-(1) XITASO GmbH IT Software Solutions, Augsburg, Germany
+(1) XITASO GmbH IT Software Solutions, Augsburg, Germany  
+
 (2) Department for digitalization and nursing science, Augsburg University Hospital, Augsburg, Germany
 
 ## Abstract 
